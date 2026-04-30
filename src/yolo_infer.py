@@ -16,7 +16,7 @@ def main():
     model = YOLO(args.weights)
 
     results = model.predict(
-        source=str(images_dir / "images"),  # 🔥 IMPORTANT
+        source=str(images_dir / "images"),  # IMPORTANT
         conf=args.conf,
         save=True,
         save_txt=True,
