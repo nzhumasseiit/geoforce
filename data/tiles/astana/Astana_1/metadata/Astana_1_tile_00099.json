@@ -1,0 +1,32 @@
+{
+  "tile_id": 99,
+  "tile_name": "Astana_1_tile_00099",
+  "source": "Astana_1.tif",
+  "source_path": "data/raw/astana/Astana_1.tif",
+  "image_path": "data/tiles/astana/Astana_1/images/Astana_1_tile_00099.png",
+  "valid_mask_path": "data/tiles/astana/Astana_1/valid_masks/Astana_1_tile_00099_valid.png",
+  "crs": "EPSG:4326",
+  "window": {
+    "col_off": 2688,
+    "row_off": 7168,
+    "width": 1024,
+    "height": 1024
+  },
+  "transform": [
+    6.705522537231445e-07,
+    0.0,
+    71.43241178244352,
+    0.0,
+    -6.705522537231445e-07,
+    51.09489921480417
+  ],
+  "valid_ratio": 1.0,
+  "tile_size": 1024,
+  "overlap": 128,
+  "bounds": [
+    71.43241178244352,
+    51.09421256929636,
+    71.43309842795134,
+    51.09489921480417
+  ]
+}

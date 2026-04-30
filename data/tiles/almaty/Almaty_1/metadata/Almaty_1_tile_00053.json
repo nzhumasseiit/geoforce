@@ -1,0 +1,32 @@
+{
+  "tile_id": 53,
+  "tile_name": "Almaty_1_tile_00053",
+  "source": "Almaty_1.tif",
+  "source_path": "data/raw/almaty/Almaty_1.tif",
+  "image_path": "data/tiles/almaty/Almaty_1/images/Almaty_1_tile_00053.png",
+  "valid_mask_path": "data/tiles/almaty/Almaty_1/valid_masks/Almaty_1_tile_00053_valid.png",
+  "crs": "EPSG:4326",
+  "window": {
+    "col_off": 4480,
+    "row_off": 2688,
+    "width": 1024,
+    "height": 1024
+  },
+  "transform": [
+    6.705522537231445e-07,
+    0.0,
+    76.90521787852049,
+    0.0,
+    -6.705522537231445e-07,
+    43.250769563019276
+  ],
+  "valid_ratio": 1.0,
+  "tile_size": 1024,
+  "overlap": 128,
+  "bounds": [
+    76.90521787852049,
+    43.25008291751146,
+    76.9059045240283,
+    43.250769563019276
+  ]
+}
