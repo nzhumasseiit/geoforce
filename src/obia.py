@@ -66,7 +66,7 @@ def majority_class(labels, weak_class_map, valid_mask):
         threshold_by_class = {
             CLASS_ID["vegetation"]: 0.12,
             CLASS_ID["impervious_surface"]: 0.32,
-            CLASS_ID["smoke_plume"]: 0.20,
+            CLASS_ID["smoke_plume"]: 0.45,
             CLASS_ID["active_fire"]: 0.08,
             CLASS_ID["water"]: 0.26,
             CLASS_ID["bare_soil"]: 0.28,
@@ -123,9 +123,9 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
         "water",
         "bare_soil",
         "impervious_surface",
+        "vegetation",
         "smoke_plume",
         "active_fire",
-        "vegetation",
     ]
 
     for cls in priority:

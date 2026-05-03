@@ -129,20 +129,18 @@ def make_masks(rgb, valid_mask):
     )
 
     smoke = (
-        (grayness | (s < 55)) &
-        (brightness > 85) &
-        (brightness < 235) &
-        (s < 85) &
+        (s < 35) &
+        (brightness > 170) &
+        (brightness < 245) &
         valid_mask &
         (~vegetation) &
         (~fire)
     )
 
     water = (
-        (
-            ((h >= 85) & (h <= 130) & (s > 20) & (v < 150)) |
-            ((b > g * 1.08) & (b > r * 1.15) & (brightness < 135))
-        ) &
+        (h >= 95) & (h <= 125) &
+        (s > 45) &
+        (v > 25) & (v < 160) &
         valid_mask &
         (~vegetation) &
         (~fire)
@@ -170,9 +168,9 @@ def make_masks(rgb, valid_mask):
     return {
         "vegetation": clean_mask(vegetation, 12, "vegetation"),
         "impervious_surface": clean_mask(impervious, 120, "impervious_surface"),
-        "smoke_plume": clean_mask(smoke, 150, "smoke_plume"),
+        "smoke_plume": clean_mask(smoke, 600, "smoke_plume"),
         "active_fire": clean_mask(fire, 20, "active_fire"),
-        "water": clean_mask(water, 120, "water"),
+        "water": clean_mask(water, 200, "water"),
         "bare_soil": clean_mask(bare_soil, 90, "bare_soil"),
         "shadow_ignore": clean_mask(shadow, 200, "shadow_ignore"),
     }
