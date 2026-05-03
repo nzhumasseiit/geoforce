@@ -105,7 +105,7 @@ def make_masks(rgb, valid_mask):
         (~vegetation)
     )
 
-    paved = (
+    impervious = (
         grayness &
         (brightness > 55) &
         (brightness < 215) &
@@ -116,14 +116,65 @@ def make_masks(rgb, valid_mask):
         (~rooftop)
     )
 
-    # Shadow only where we did not already find vegetation.
+    fire = (
+        (
+            ((h <= 25) | (h >= 170)) |
+            ((h >= 8) & (h <= 35))
+        ) &
+        (s > 110) &
+        (v > 150) &
+        (r > g * 0.95) &
+        (g > b * 0.8) &
+        valid_mask
+    )
+
+    smoke = (
+        (grayness | (s < 55)) &
+        (brightness > 85) &
+        (brightness < 235) &
+        (s < 85) &
+        valid_mask &
+        (~vegetation) &
+        (~fire)
+    )
+
+    water = (
+        (
+            ((h >= 85) & (h <= 130) & (s > 20) & (v < 150)) |
+            ((b > g * 1.08) & (b > r * 1.15) & (brightness < 135))
+        ) &
+        valid_mask &
+        (~vegetation) &
+        (~fire)
+    )
+
+    bare_soil = (
+        ((h >= 8) & (h <= 28)) &
+        (s > 35) &
+        (s < 170) &
+        (brightness > 70) &
+        (brightness < 205) &
+        (r > g) &
+        (g >= b * 0.9) &
+        valid_mask &
+        (~vegetation) &
+        (~fire) &
+        (~water)
+    )
+
+    impervious = impervious & (~bare_soil) & (~water) & (~smoke) & (~fire)
+
+    # Shadow only where we did not already find vegetation or emergency classes.
     shadow = shadow & (~vegetation)
 
     return {
         "vegetation": clean_mask(vegetation, 12, "vegetation"),
-        "ground": clean_mask(paved, 120, "ground"),
+        "impervious_surface": clean_mask(impervious, 120, "impervious_surface"),
+        "smoke_plume": clean_mask(smoke, 150, "smoke_plume"),
+        "active_fire": clean_mask(fire, 20, "active_fire"),
+        "water": clean_mask(water, 120, "water"),
+        "bare_soil": clean_mask(bare_soil, 90, "bare_soil"),
         "shadow_ignore": clean_mask(shadow, 200, "shadow_ignore"),
-        "rooftop": clean_mask(rooftop, 60, "rooftop"),
     }
 
 
@@ -137,6 +188,14 @@ def clean_mask(mask, min_area, class_name):
 
         open_k = np.ones((2, 2), np.uint8)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, open_k)
+    elif class_name in {"smoke_plume", "water"}:
+        close_k = np.ones((7, 7), np.uint8)
+        open_k = np.ones((3, 3), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, close_k)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, open_k)
+    elif class_name == "active_fire":
+        close_k = np.ones((3, 3), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, close_k)
 
     else:
         open_k = np.ones((5, 5), np.uint8)

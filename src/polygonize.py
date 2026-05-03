@@ -19,15 +19,30 @@ CLASS_CONFIG = {
         "simplify_tolerance": 0,
         "confidence_base": 62,
     },
-    "ground": {
+    "impervious_surface": {
         "min_area_m2": 80,
         "simplify_tolerance": 0,
         "confidence_base": 58,
     },
-    "rooftop": {
-        "min_area_m2": 25,
+    "smoke_plume": {
+        "min_area_m2": 30,
         "simplify_tolerance": 0,
-        "confidence_base": 65,
+        "confidence_base": 55,
+    },
+    "active_fire": {
+        "min_area_m2": 4,
+        "simplify_tolerance": 0,
+        "confidence_base": 70,
+    },
+    "water": {
+        "min_area_m2": 20,
+        "simplify_tolerance": 0,
+        "confidence_base": 60,
+    },
+    "bare_soil": {
+        "min_area_m2": 30,
+        "simplify_tolerance": 0,
+        "confidence_base": 50,
     },
     "shadow_ignore": {
         "min_area_m2": 100,
@@ -188,6 +203,7 @@ def polygonize_masks(mask_index_path: str, output_path: str, merge_same_class: b
                 "source": meta["source"],
                 "tile_name": meta["tile_name"],
                 "valid_ratio": valid_ratio,
+                "aoi_path": meta.get("aoi_path"),
                 "geometry": poly,
             })
 
@@ -224,6 +240,7 @@ def polygonize_masks(mask_index_path: str, output_path: str, merge_same_class: b
         ),
         axis=1,
     )
+    gdf["confidence_method"] = "geometry_proxy"
 
     if merge_same_class:
         merged = []
@@ -246,6 +263,7 @@ def polygonize_masks(mask_index_path: str, output_path: str, merge_same_class: b
                     "tile_name": "merged",
                     "valid_ratio": round(float(group["valid_ratio"].mean()), 4),
                     "confidence": round(float(group["confidence"].mean()), 2),
+                    "confidence_method": "geometry_proxy",
                     "geometry": geom_part,
                 })
 
@@ -261,10 +279,12 @@ def polygonize_masks(mask_index_path: str, output_path: str, merge_same_class: b
             "class",
             "is_final_class",
             "confidence",
+            "confidence_method",
             "source",
             "tile_name",
             "area_m2",
             "valid_ratio",
+            "aoi_path",
             "geometry",
         ]
     ]

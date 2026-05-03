@@ -12,9 +12,12 @@ from skimage.color import rgb2lab
 CLASS_ID = {
     "background": 0,
     "vegetation": 1,
-    "ground": 2,
-    "rooftop": 3,
-    "shadow_ignore": 4,
+    "impervious_surface": 2,
+    "smoke_plume": 3,
+    "active_fire": 4,
+    "water": 5,
+    "bare_soil": 6,
+    "shadow_ignore": 7,
 }
 
 ID_CLASS = {v: k for k, v in CLASS_ID.items()}
@@ -51,7 +54,7 @@ def majority_class(labels, weak_class_map, valid_mask):
         counts = np.bincount(values, minlength=len(CLASS_ID))
 
         # Vegetation boost: if enough pixels in a superpixel are vegetation,
-        # keep it as vegetation even if paved/rooftop slightly wins.
+        # keep it as vegetation even if other broad classes slightly win.
         veg_ratio = counts[CLASS_ID["vegetation"]] / region_valid.sum()
         if veg_ratio >= 0.12:
             out[region_valid] = CLASS_ID["vegetation"]
@@ -62,8 +65,11 @@ def majority_class(labels, weak_class_map, valid_mask):
 
         threshold_by_class = {
             CLASS_ID["vegetation"]: 0.12,
-            CLASS_ID["rooftop"]: 0.20,
-            CLASS_ID["ground"]: 0.42,
+            CLASS_ID["impervious_surface"]: 0.32,
+            CLASS_ID["smoke_plume"]: 0.20,
+            CLASS_ID["active_fire"]: 0.08,
+            CLASS_ID["water"]: 0.26,
+            CLASS_ID["bare_soil"]: 0.28,
             CLASS_ID["shadow_ignore"]: 0.45,
         }
 
@@ -112,7 +118,15 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
     # Priority order:
     # broad/uncertain first, stronger semantic classes later.
     # Vegetation last = vegetation can rescue trees from shadow/paved confusion.
-    priority = ["shadow_ignore", "ground", "rooftop", "vegetation"]
+    priority = [
+        "shadow_ignore",
+        "water",
+        "bare_soil",
+        "impervious_surface",
+        "smoke_plume",
+        "active_fire",
+        "vegetation",
+    ]
 
     for cls in priority:
         if cls not in weak_masks_by_class:
@@ -144,8 +158,11 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
 
     min_area_by_class = {
         "vegetation": 35,
-        "ground": 180,
-        "rooftop": 100,
+        "impervious_surface": 180,
+        "smoke_plume": 120,
+        "active_fire": 20,
+        "water": 120,
+        "bare_soil": 100,
         "shadow_ignore": 250,
     }
 

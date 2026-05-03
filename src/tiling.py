@@ -4,7 +4,9 @@ import json
 import csv
 
 import numpy as np
+import geopandas as gpd
 import rasterio
+from rasterio.features import geometry_mask
 from rasterio.windows import Window, transform as window_transform
 from PIL import Image
 
@@ -62,6 +64,7 @@ def tile_geotiff(
     tile_size: int = 1024,
     overlap: int = 128,
     min_valid_ratio: float = 0.05,
+    aoi_path: str | None = None,
 ):
     input_path = Path(input_path)
     output_dir = Path(output_dir)
@@ -82,6 +85,24 @@ def tile_geotiff(
 
         has_alpha = src.count >= 4
         source_name = input_path.stem
+        aoi_geoms = None
+
+        if aoi_path is not None:
+            if src.crs is None:
+                raise ValueError("AOI clipping requires the GeoTIFF to have a CRS")
+
+            aoi_gdf = gpd.read_file(aoi_path)
+            if aoi_gdf.empty:
+                raise ValueError("AOI file is empty")
+
+            if aoi_gdf.crs is None:
+                raise ValueError("AOI file must have a CRS")
+
+            aoi_gdf = aoi_gdf.to_crs(src.crs)
+            aoi_geoms = [geom for geom in aoi_gdf.geometry if geom is not None and not geom.is_empty]
+
+            if not aoi_geoms:
+                raise ValueError("AOI file contains no valid geometries")
 
         print("=" * 60)
         print(f"Source: {input_path}")
@@ -103,14 +124,25 @@ def tile_geotiff(
             if has_alpha:
                 alpha = src.read(4, window=window)
                 valid_mask = alpha > 0
-                valid_ratio = float(np.count_nonzero(valid_mask) / valid_mask.size)
-
-                if valid_ratio < min_valid_ratio:
-                    skipped += 1
-                    continue
             else:
                 valid_mask = np.ones((int(window.height), int(window.width)), dtype=bool)
-                valid_ratio = 1.0
+
+            t_transform = window_transform(window, src.transform)
+
+            if aoi_geoms is not None:
+                aoi_mask = geometry_mask(
+                    aoi_geoms,
+                    out_shape=(int(window.height), int(window.width)),
+                    transform=t_transform,
+                    invert=True,
+                )
+                valid_mask = valid_mask & aoi_mask
+
+            valid_ratio = float(np.count_nonzero(valid_mask) / valid_mask.size)
+
+            if valid_ratio < min_valid_ratio:
+                skipped += 1
+                continue
 
             tile_name = f"{source_name}_tile_{tile_id:05d}"
             image_path = image_dir / f"{tile_name}.png"
@@ -119,8 +151,6 @@ def tile_geotiff(
 
             Image.fromarray(rgb_img).save(image_path)
             Image.fromarray((valid_mask.astype(np.uint8) * 255)).save(mask_path)
-
-            t_transform = window_transform(window, src.transform)
 
             meta = {
                 "tile_id": tile_id,
@@ -141,6 +171,7 @@ def tile_geotiff(
                 "tile_size": tile_size,
                 "overlap": overlap,
                 "bounds": rasterio.windows.bounds(window, src.transform),
+                "aoi_path": str(aoi_path) if aoi_path is not None else None,
             }
 
             with open(meta_path, "w", encoding="utf-8") as f:
@@ -185,6 +216,7 @@ def main():
     parser.add_argument("--tile-size", type=int, default=1024)
     parser.add_argument("--overlap", type=int, default=128)
     parser.add_argument("--min-valid-ratio", type=float, default=0.05)
+    parser.add_argument("--aoi", help="Optional AOI vector path (GeoJSON/GPKG/Shapefile)")
 
     args = parser.parse_args()
 
@@ -194,6 +226,7 @@ def main():
         tile_size=args.tile_size,
         overlap=args.overlap,
         min_valid_ratio=args.min_valid_ratio,
+        aoi_path=args.aoi,
     )
 
 

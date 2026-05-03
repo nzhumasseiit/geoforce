@@ -4,8 +4,8 @@ import shutil
 import zipfile
 from pathlib import Path
 
-st.set_page_config(page_title="GeoForce Roof Detection", layout="wide")
-st.title("GeoForce: Building Roof Detection from Satellite TIFFs")
+st.set_page_config(page_title="GeoForce Emergency Mapping", layout="wide")
+st.title("GeoForce: Emergency Situational Mapping from GeoTIFFs")
 
 
 def run_cmd(cmd):
@@ -93,32 +93,30 @@ def prepare_input_tif() -> Path | None:
 tif_path = prepare_input_tif()
 
 if tif_path is not None:
-    raw_dir = Path("data/raw/streamlit")
+    aoi_path = st.text_input(
+        "Optional AOI vector path",
+        placeholder="/absolute/path/to/aoi.geojson",
+    ).strip()
     tiles_dir = Path("data/tiles/streamlit")
     masks_dir = Path("outputs/masks/streamlit")
-    yolo_dir = Path("outputs/yolo/streamlit")
-    yolo_masks_dir = Path("outputs/yolo_masks/streamlit")
-    masks_fused_dir = Path("outputs/masks_fused/streamlit")
     masks_obia_dir = Path("outputs/masks_obia/streamlit")
     out_geo_dir = Path("outputs/geojson/streamlit")
-
-    use_yolo_roof = st.checkbox("Use YOLO roof correction", value=True)
-    yolo_weights = st.text_input("YOLO weights path", value="models/best.pt")
-    yolo_conf = st.slider("YOLO confidence threshold", 0.05, 0.95, 0.25, 0.05)
+    exports_dir = Path("outputs/exports/streamlit")
 
     if st.button("Run pipeline"):
         reset_pipeline_dirs([
             tiles_dir,
             masks_dir,
-            yolo_dir,
-            yolo_masks_dir,
-            masks_fused_dir,
             masks_obia_dir,
             out_geo_dir,
+            exports_dir,
         ])
 
         with st.spinner("Running tiling..."):
-            run_cmd(["python", "src/tiling.py", str(tif_path), "--output", str(tiles_dir)])
+            cmd = ["python", "src/tiling.py", str(tif_path), "--output", str(tiles_dir)]
+            if aoi_path:
+                cmd.extend(["--aoi", aoi_path])
+            run_cmd(cmd)
 
         masks_dir.mkdir(parents=True, exist_ok=True)
         with st.spinner("Running rule masks..."):
@@ -130,57 +128,14 @@ if tif_path is not None:
                 str(masks_dir),
             ])
 
-        weak_mask_index = masks_dir / "mask_index.json"
-
-        if use_yolo_roof:
-            with st.spinner("Running YOLO roof detector..."):
-                run_cmd([
-                    "python",
-                    "src/yolo_infer.py",
-                    str(tiles_dir),
-                    "--weights",
-                    yolo_weights,
-                    "--output",
-                    str(yolo_dir),
-                    "--conf",
-                    str(yolo_conf),
-                ])
-
-            with st.spinner("Converting YOLO detections to masks..."):
-                run_cmd([
-                    "python",
-                    "src/yolo_to_masks.py",
-                    str(tiles_dir),
-                    str(yolo_dir / "streamlit_preds"),
-                    "--output",
-                    str(yolo_masks_dir),
-                    "--min-conf",
-                    str(yolo_conf),
-                ])
-
-            with st.spinner("Fusing rule masks with YOLO roofs..."):
-                run_cmd([
-                    "python",
-                    "src/fuse_masks.py",
-                    str(masks_dir / "mask_index.json"),
-                    str(yolo_masks_dir / "mask_index.json"),
-                    "--output",
-                    str(masks_fused_dir),
-                ])
-
-            weak_mask_index = masks_fused_dir / "mask_index.json"
-
         st.write("Rule mask index exists:", (masks_dir / "mask_index.json").exists())
-        if use_yolo_roof:
-            st.write("YOLO mask index exists:", (yolo_masks_dir / "mask_index.json").exists())
-            st.write("Fused mask index exists:", (masks_fused_dir / "mask_index.json").exists())
         st.write("OBIA index exists:", (masks_obia_dir / "mask_index.json").exists())
 
         with st.spinner("Running OBIA..."):
             run_cmd([
                 "python",
                 "src/obia.py",
-                str(weak_mask_index),
+                str(masks_dir / "mask_index.json"),
                 "--output",
                 str(masks_obia_dir),
             ])
@@ -189,6 +144,7 @@ if tif_path is not None:
         objects_path = out_geo_dir / "objects.geojson"
         objects_clean_path = out_geo_dir / "objects_clean.geojson"
         summary_csv = out_geo_dir / "summary_metrics.csv"
+        objects_gpkg = exports_dir / "objects_clean.gpkg"
 
         with st.spinner("Polygonizing results..."):
             run_cmd(
@@ -214,7 +170,19 @@ if tif_path is not None:
                 ]
             )
 
+        with st.spinner("Exporting GeoPackage..."):
+            run_cmd(
+                [
+                    "python",
+                    "src/export.py",
+                    str(objects_clean_path),
+                    "--output",
+                    str(objects_gpkg),
+                ]
+            )
+
         st.write("GeoJSON outputs:", list(out_geo_dir.glob("*.geojson")))
+        st.write("GeoPackage output exists:", objects_gpkg.exists())
 
         st.success("Pipeline finished!")
 
@@ -226,8 +194,15 @@ if tif_path is not None:
             st.download_button(
                 "Download GeoJSON",
                 geojson_path.read_bytes(),
-                file_name="detected_buildings.geojson",
+                file_name="detected_objects.geojson",
                 mime="application/geo+json"
             )
+            if objects_gpkg.exists():
+                st.download_button(
+                    "Download GeoPackage",
+                    objects_gpkg.read_bytes(),
+                    file_name="detected_objects.gpkg",
+                    mime="application/geopackage+sqlite3",
+                )
         else:
             st.warning("GeoJSON not found yet.")

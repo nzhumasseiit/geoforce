@@ -6,7 +6,14 @@ from pyproj import CRS
 from shapely.ops import unary_union
 
 
-FINAL_CLASSES = {"vegetation", "ground", "rooftop"}
+FINAL_CLASSES = {
+    "vegetation",
+    "impervious_surface",
+    "smoke_plume",
+    "active_fire",
+    "water",
+    "bare_soil",
+}
 
 
 def estimate_utm_crs(gdf: gpd.GeoDataFrame) -> CRS:
@@ -92,37 +99,39 @@ def main():
 
     gdf["subclass"] = gdf["class"]
 
-    # rescue misclassified roofs from ground-like surfaces
+    # Linear impervious objects are often roads / paths.
     gdf.loc[
-        (gdf["class"]=="ground") &
-        (gdf["area_m2"] > 100) &
-        (gdf["area_m2"] < 1800) &
-        (gdf["elongation_ratio"] < 2.2) &
-        (gdf["compactness_score"] > 0.55),
-        "class"
-    ] = "rooftop"
-
-    # long ground objects are often roads / paths
-    gdf.loc[
-        (gdf["class"] == "ground") & (gdf["elongation_ratio"] >= 5.0),
+        (gdf["class"] == "impervious_surface") & (gdf["elongation_ratio"] >= 5.0),
         "subclass"
-    ] = "linear_ground"
+    ] = "linear_impervious"
 
-    # compact ground objects may still include roof-like hard surfaces.
+    # Compact impervious regions often correspond to buildings or yards.
     gdf.loc[
-        (gdf["class"] == "ground")
+        (gdf["class"] == "impervious_surface")
         & (gdf["elongation_ratio"] < 2.2)
         & (gdf["compactness_score"] > 0.35),
         "subclass"
-    ] = "block_like_ground_check_roof"
+    ] = "block_like_impervious"
 
-    # compact vegetation = possible green roof / false vegetation
+    # Compact vegetation may indicate landscaped patches or green roofs.
     gdf.loc[
         (gdf["class"] == "vegetation")
         & (gdf["elongation_ratio"] < 2.0)
         & (gdf["compactness_score"] > 0.45),
         "subclass"
     ] = "possible_green_roof"
+
+    gdf.loc[
+        (gdf["class"] == "water") &
+        (gdf["elongation_ratio"] >= 4.0),
+        "subclass"
+    ] = "linear_water"
+
+    gdf.loc[
+        (gdf["class"] == "smoke_plume") &
+        (gdf["compactness_score"] < 0.2),
+        "subclass"
+    ] = "diffuse_smoke"
 
     metrics = (
         gdf.groupby("class")
