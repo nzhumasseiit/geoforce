@@ -7,6 +7,7 @@ from pathlib import Path
 st.set_page_config(page_title="GeoForce Roof Detection", layout="wide")
 st.title("GeoForce: Building Roof Detection from Satellite TIFFs")
 
+
 def run_cmd(cmd):
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -17,10 +18,21 @@ def run_cmd(cmd):
         st.stop()
     return result
 
+
+def reset_pipeline_dirs(paths):
+    for path in paths:
+        if path.exists():
+            shutil.rmtree(path)
+
+
 uploaded = st.file_uploader("Upload ZIP containing GeoTIFF", type=["zip"])
 
 if uploaded:
     raw_dir = Path("data/raw/streamlit")
+    tiles_dir = Path("data/tiles/streamlit")
+    masks_dir = Path("outputs/masks/streamlit")
+    masks_obia_dir = Path("outputs/masks_obia/streamlit")
+    out_geo_dir = Path("outputs/geojson/streamlit")
 
     if raw_dir.exists():
         shutil.rmtree(raw_dir)
@@ -46,27 +58,33 @@ if uploaded:
     st.success(f"Found GeoTIFF: {tif_path}")
 
     if st.button("Run pipeline"):
-        with st.spinner("Running tiling..."):
-            run_cmd(["python", "src/tiling.py", str(tif_path), "--output", "data/tiles/streamlit"])
-        
+        reset_pipeline_dirs([tiles_dir, masks_dir, masks_obia_dir, out_geo_dir])
 
-        Path("outputs/masks/streamlit").mkdir(parents=True, exist_ok=True)
+        with st.spinner("Running tiling..."):
+            run_cmd(["python", "src/tiling.py", str(tif_path), "--output", str(tiles_dir)])
+
+        masks_dir.mkdir(parents=True, exist_ok=True)
         with st.spinner("Running rule masks..."):
             run_cmd([
                 "python",
                 "src/rules.py",
-                "data/tiles/streamlit",
+                str(tiles_dir),
                 "--output",
-                "outputs/masks/streamlit"
+                str(masks_dir),
             ])
 
-        st.write("Rule mask index exists:", Path("outputs/masks/streamlit/mask_index.json").exists())
-        st.write("OBIA index exists:", Path("outputs/masks_obia/streamlit/mask_index.json").exists())
+        st.write("Rule mask index exists:", (masks_dir / "mask_index.json").exists())
+        st.write("OBIA index exists:", (masks_obia_dir / "mask_index.json").exists())
 
         with st.spinner("Running OBIA..."):
-            run_cmd(["python", "src/obia.py", "outputs/masks/streamlit/mask_index.json", "--output", "outputs/masks_obia/streamlit"])
+            run_cmd([
+                "python",
+                "src/obia.py",
+                str(masks_dir / "mask_index.json"),
+                "--output",
+                str(masks_obia_dir),
+            ])
 
-        out_geo_dir = Path("outputs/geojson/streamlit")
         out_geo_dir.mkdir(parents=True, exist_ok=True)
         objects_path = out_geo_dir / "objects.geojson"
         objects_clean_path = out_geo_dir / "objects_clean.geojson"
@@ -77,7 +95,7 @@ if uploaded:
                 [
                     "python",
                     "src/polygonize.py",
-                    "outputs/masks_obia/streamlit/mask_index.json",
+                    str(masks_obia_dir / "mask_index.json"),
                     "--output",
                     str(objects_path),
                 ]

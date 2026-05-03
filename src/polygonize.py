@@ -98,7 +98,17 @@ def mask_to_polygons(mask: np.ndarray, transform: Affine, simplify_tolerance: fl
 
 
 def estimate_utm_crs(gdf: gpd.GeoDataFrame):
-    centroid = gdf.geometry.unary_union.centroid
+    geo = gdf[gdf.geometry.notnull()].copy()
+    geo = geo[~geo.geometry.is_empty]
+
+    if geo.empty:
+        return CRS.from_epsg(32643)
+
+    if geo.crs is None:
+        return CRS.from_epsg(32643)
+
+    geo_ll = geo.to_crs("EPSG:4326")
+    centroid = unary_union(geo_ll.geometry).centroid
     lon, lat = centroid.x, centroid.y
 
     zone = int((lon + 180) // 6) + 1
@@ -273,7 +283,7 @@ def polygonize_masks(mask_index_path: str, output_path: str, merge_same_class: b
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mask_index", help="Path to mask_index.json from rules.py")
+    parser.add_argument("mask_index", help="Path to mask_index.json from obia.py")
     parser.add_argument("--output", default="outputs/geojson/objects.geojson")
     parser.add_argument("--merge-same-class", action="store_true")
     args = parser.parse_args()
