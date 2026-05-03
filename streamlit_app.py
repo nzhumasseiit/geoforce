@@ -22,40 +22,82 @@ def run_cmd(cmd):
 def reset_pipeline_dirs(paths):
     for path in paths:
         if path.exists():
-            shutil.rmtree(path)
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
 
 
-uploaded = st.file_uploader("Upload ZIP containing GeoTIFF", type=["zip"])
+def prepare_input_tif() -> Path | None:
+    source_mode = st.radio(
+        "Input source",
+        ("ZIP upload", "Local path"),
+        horizontal=True,
+    )
 
-if uploaded:
+    if source_mode == "ZIP upload":
+        uploaded = st.file_uploader("Upload ZIP containing GeoTIFF", type=["zip"])
+        if not uploaded:
+            return None
+
+        raw_dir = Path("data/raw/streamlit")
+        reset_pipeline_dirs([raw_dir])
+        raw_dir.mkdir(parents=True, exist_ok=True)
+
+        zip_path = raw_dir / "uploaded.zip"
+        zip_path.write_bytes(uploaded.read())
+
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(raw_dir)
+        except zipfile.BadZipFile:
+            st.error("Invalid ZIP file.")
+            st.stop()
+
+        tif_files = list(raw_dir.rglob("*.tif")) + list(raw_dir.rglob("*.tiff"))
+        if not tif_files:
+            st.error("No .tif or .tiff found inside ZIP.")
+            st.stop()
+
+        tif_path = tif_files[0]
+        st.success(f"Found GeoTIFF: {tif_path}")
+        return tif_path
+
+    local_path = st.text_input(
+        "Local GeoTIFF path",
+        placeholder="/absolute/path/to/image.tif",
+    ).strip()
+
+    if not local_path:
+        return None
+
+    tif_path = Path(local_path).expanduser()
+    if not tif_path.exists():
+        st.error(f"Path does not exist: {tif_path}")
+        st.stop()
+
+    if tif_path.is_dir():
+        tif_files = list(tif_path.rglob("*.tif")) + list(tif_path.rglob("*.tiff"))
+        if not tif_files:
+            st.error("No .tif or .tiff found in the provided folder.")
+            st.stop()
+        tif_path = tif_files[0]
+    elif tif_path.suffix.lower() not in {".tif", ".tiff"}:
+        st.error("Please provide a .tif/.tiff file or a folder containing GeoTIFFs.")
+        st.stop()
+
+    st.success(f"Using local GeoTIFF: {tif_path}")
+    return tif_path
+
+
+tif_path = prepare_input_tif()
+
+if tif_path is not None:
     raw_dir = Path("data/raw/streamlit")
     tiles_dir = Path("data/tiles/streamlit")
     masks_dir = Path("outputs/masks/streamlit")
     masks_obia_dir = Path("outputs/masks_obia/streamlit")
     out_geo_dir = Path("outputs/geojson/streamlit")
-
-    if raw_dir.exists():
-        shutil.rmtree(raw_dir)
-    raw_dir.mkdir(parents=True, exist_ok=True)
-
-    zip_path = raw_dir / "uploaded.zip"
-    zip_path.write_bytes(uploaded.read())
-
-    try:
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(raw_dir)
-    except zipfile.BadZipFile:
-        st.error("Invalid ZIP file.")
-        st.stop()
-
-    tif_files = list(raw_dir.rglob("*.tif")) + list(raw_dir.rglob("*.tiff"))
-
-    if not tif_files:
-        st.error("No .tif or .tiff found inside ZIP.")
-        st.stop()
-
-    tif_path = tif_files[0]
-    st.success(f"Found GeoTIFF: {tif_path}")
 
     if st.button("Run pipeline"):
         reset_pipeline_dirs([tiles_dir, masks_dir, masks_obia_dir, out_geo_dir])

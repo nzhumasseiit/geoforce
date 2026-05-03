@@ -19,7 +19,7 @@ CLASS_CONFIG = {
         "simplify_tolerance": 0,
         "confidence_base": 62,
     },
-    "paved_area": {
+    "ground": {
         "min_area_m2": 80,
         "simplify_tolerance": 0,
         "confidence_base": 58,

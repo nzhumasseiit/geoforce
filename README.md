@@ -1,6 +1,6 @@
 # GeoForce
 
-Прототип для кейса NURIS: разбиение GeoTIFF на тайлы, выделение классов местности (растительность, кровли, асфальт и т.д.) и экспорт слоя GeoJSON (+ сводные показатели).
+Прототип для кейса NURIS: разбиение GeoTIFF на тайлы, выделение классов местности (растительность, кровли, открытая поверхность/грунт и т.д.) и экспорт слоя GeoJSON (+ сводные показатели).
 
 Ссылка на исследовательский блокнот Colab (по желанию):  
 https://colab.research.google.com/drive/1Qp1sh2V1O69pzWe-jAC2iAJTInZCUFpu?usp=sharing
@@ -54,7 +54,7 @@ python src/postprocess.py outputs/geojson/my_run/objects.geojson \
 streamlit run streamlit_app.py
 ```
 
-Загрузите ZIP с одним или несколькими GeoTIFF внутри. При нажатии **Run pipeline** выполняются шаги 1–5 в каталоги `data/tiles/streamlit`, `outputs/.../streamlit`; готовый слой скачивается как `detected_buildings.geojson`.
+Можно загрузить ZIP с одним или несколькими GeoTIFF внутри или указать локальный путь к `.tif/.tiff`. При нажатии **Run pipeline** выполняются шаги 1–5 в каталоги `data/tiles/streamlit`, `outputs/.../streamlit`; готовый слой скачивается как `detected_buildings.geojson`.
 
 ## Структура выходного GeoJSON
 

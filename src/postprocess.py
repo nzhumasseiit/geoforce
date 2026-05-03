@@ -6,7 +6,7 @@ from pyproj import CRS
 from shapely.ops import unary_union
 
 
-FINAL_CLASSES = {"vegetation", "paved_area", "rooftop"}
+FINAL_CLASSES = {"vegetation", "ground", "rooftop"}
 
 
 def estimate_utm_crs(gdf: gpd.GeoDataFrame) -> CRS:
@@ -92,9 +92,9 @@ def main():
 
     gdf["subclass"] = gdf["class"]
 
-    # rescue misclassified roofs from paved
+    # rescue misclassified roofs from ground-like surfaces
     gdf.loc[
-        (gdf["class"]=="paved_area") &
+        (gdf["class"]=="ground") &
         (gdf["area_m2"] > 100) &
         (gdf["area_m2"] < 1800) &
         (gdf["elongation_ratio"] < 2.2) &
@@ -102,19 +102,19 @@ def main():
         "class"
     ] = "rooftop"
 
-    # long paved objects = roads / paths
+    # long ground objects are often roads / paths
     gdf.loc[
-        (gdf["class"] == "paved_area") & (gdf["elongation_ratio"] >= 5.0),
+        (gdf["class"] == "ground") & (gdf["elongation_ratio"] >= 5.0),
         "subclass"
-    ] = "linear_paved"
+    ] = "linear_ground"
 
-    # compact paved objects = possible roof / courtyard / parking
+    # compact ground objects may still include roof-like hard surfaces.
     gdf.loc[
-        (gdf["class"] == "paved_area")
+        (gdf["class"] == "ground")
         & (gdf["elongation_ratio"] < 2.2)
         & (gdf["compactness_score"] > 0.35),
         "subclass"
-    ] = "block_like_paved_check_roof"
+    ] = "block_like_ground_check_roof"
 
     # compact vegetation = possible green roof / false vegetation
     gdf.loc[

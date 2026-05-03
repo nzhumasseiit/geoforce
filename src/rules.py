@@ -121,7 +121,7 @@ def make_masks(rgb, valid_mask):
 
     return {
         "vegetation": clean_mask(vegetation, 12, "vegetation"),
-        "paved_area": clean_mask(paved, 120, "paved_area"),
+        "ground": clean_mask(paved, 120, "ground"),
         "shadow_ignore": clean_mask(shadow, 200, "shadow_ignore"),
         "rooftop": clean_mask(rooftop, 60, "rooftop"),
     }

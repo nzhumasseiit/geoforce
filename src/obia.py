@@ -12,7 +12,7 @@ from skimage.color import rgb2lab
 CLASS_ID = {
     "background": 0,
     "vegetation": 1,
-    "paved_area": 2,
+    "ground": 2,
     "rooftop": 3,
     "shadow_ignore": 4,
 }
@@ -63,7 +63,7 @@ def majority_class(labels, weak_class_map, valid_mask):
         threshold_by_class = {
             CLASS_ID["vegetation"]: 0.12,
             CLASS_ID["rooftop"]: 0.20,
-            CLASS_ID["paved_area"]: 0.42,
+            CLASS_ID["ground"]: 0.42,
             CLASS_ID["shadow_ignore"]: 0.45,
         }
 
@@ -112,7 +112,7 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
     # Priority order:
     # broad/uncertain first, stronger semantic classes later.
     # Vegetation last = vegetation can rescue trees from shadow/paved confusion.
-    priority = ["shadow_ignore", "paved_area", "rooftop", "vegetation"]
+    priority = ["shadow_ignore", "ground", "rooftop", "vegetation"]
 
     for cls in priority:
         if cls not in weak_masks_by_class:
@@ -144,7 +144,7 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
 
     min_area_by_class = {
         "vegetation": 35,
-        "paved_area": 180,
+        "ground": 180,
         "rooftop": 100,
         "shadow_ignore": 250,
     }
