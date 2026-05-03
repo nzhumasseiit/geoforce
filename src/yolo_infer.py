@@ -2,6 +2,7 @@ from pathlib import Path
 import argparse
 from ultralytics import YOLO
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("images_dir")
@@ -20,6 +21,7 @@ def main():
         conf=args.conf,
         save=True,
         save_txt=True,
+        save_conf=True,
         project=str(out_dir),
         name="streamlit_preds",  # avoid overwriting
         exist_ok=True

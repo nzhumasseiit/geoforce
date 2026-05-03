@@ -96,11 +96,26 @@ if tif_path is not None:
     raw_dir = Path("data/raw/streamlit")
     tiles_dir = Path("data/tiles/streamlit")
     masks_dir = Path("outputs/masks/streamlit")
+    yolo_dir = Path("outputs/yolo/streamlit")
+    yolo_masks_dir = Path("outputs/yolo_masks/streamlit")
+    masks_fused_dir = Path("outputs/masks_fused/streamlit")
     masks_obia_dir = Path("outputs/masks_obia/streamlit")
     out_geo_dir = Path("outputs/geojson/streamlit")
 
+    use_yolo_roof = st.checkbox("Use YOLO roof correction", value=True)
+    yolo_weights = st.text_input("YOLO weights path", value="models/best.pt")
+    yolo_conf = st.slider("YOLO confidence threshold", 0.05, 0.95, 0.25, 0.05)
+
     if st.button("Run pipeline"):
-        reset_pipeline_dirs([tiles_dir, masks_dir, masks_obia_dir, out_geo_dir])
+        reset_pipeline_dirs([
+            tiles_dir,
+            masks_dir,
+            yolo_dir,
+            yolo_masks_dir,
+            masks_fused_dir,
+            masks_obia_dir,
+            out_geo_dir,
+        ])
 
         with st.spinner("Running tiling..."):
             run_cmd(["python", "src/tiling.py", str(tif_path), "--output", str(tiles_dir)])
@@ -115,14 +130,57 @@ if tif_path is not None:
                 str(masks_dir),
             ])
 
+        weak_mask_index = masks_dir / "mask_index.json"
+
+        if use_yolo_roof:
+            with st.spinner("Running YOLO roof detector..."):
+                run_cmd([
+                    "python",
+                    "src/yolo_infer.py",
+                    str(tiles_dir),
+                    "--weights",
+                    yolo_weights,
+                    "--output",
+                    str(yolo_dir),
+                    "--conf",
+                    str(yolo_conf),
+                ])
+
+            with st.spinner("Converting YOLO detections to masks..."):
+                run_cmd([
+                    "python",
+                    "src/yolo_to_masks.py",
+                    str(tiles_dir),
+                    str(yolo_dir / "streamlit_preds"),
+                    "--output",
+                    str(yolo_masks_dir),
+                    "--min-conf",
+                    str(yolo_conf),
+                ])
+
+            with st.spinner("Fusing rule masks with YOLO roofs..."):
+                run_cmd([
+                    "python",
+                    "src/fuse_masks.py",
+                    str(masks_dir / "mask_index.json"),
+                    str(yolo_masks_dir / "mask_index.json"),
+                    "--output",
+                    str(masks_fused_dir),
+                ])
+
+            weak_mask_index = masks_fused_dir / "mask_index.json"
+
         st.write("Rule mask index exists:", (masks_dir / "mask_index.json").exists())
+        if use_yolo_roof:
+            st.write("YOLO mask index exists:", (yolo_masks_dir / "mask_index.json").exists())
+            st.write("Fused mask index exists:", (masks_fused_dir / "mask_index.json").exists())
         st.write("OBIA index exists:", (masks_obia_dir / "mask_index.json").exists())
 
         with st.spinner("Running OBIA..."):
             run_cmd([
                 "python",
                 "src/obia.py",
-                str(masks_dir / "mask_index.json"),
+                str(weak_mask_index),
                 "--output",
                 str(masks_obia_dir),
             ])
