@@ -2,9 +2,35 @@ from pathlib import Path
 import argparse
 import geopandas as gpd
 import numpy as np
+from pyproj import CRS
+from shapely.ops import unary_union
 
 
 FINAL_CLASSES = {"vegetation", "paved_area", "rooftop"}
+
+
+def estimate_utm_crs(gdf: gpd.GeoDataFrame) -> CRS:
+    """Pick a metric UTM zone from the centroid in WGS 84."""
+    geo = gdf[gdf.geometry.notnull()].copy()
+    geo = geo[~geo.geometry.is_empty]
+
+    if geo.empty:
+        return CRS.from_epsg(32643)
+
+    geo_ll = geo.to_crs("EPSG:4326")
+    centroid = unary_union(geo_ll.geometry).centroid
+
+    lon, lat = float(centroid.x), float(centroid.y)
+
+    zone = int((lon + 180.0) // 6.0) + 1
+    zone = min(max(zone, 1), 60)
+
+    if lat >= 0:
+        epsg = 32600 + zone
+    else:
+        epsg = 32700 + zone
+
+    return CRS.from_epsg(epsg)
 
 
 def compactness(geom):
@@ -51,9 +77,8 @@ def main():
     # keep original CRS for saving later
     original_crs = gdf.crs
 
-    # project to meters for correct area/shape measurements
-    # Almaty is UTM zone 43N
-    gdf = gdf.to_crs("EPSG:32643")
+    metric_crs = estimate_utm_crs(gdf)
+    gdf = gdf.to_crs(metric_crs)
 
     gdf = gdf[gdf["class"].isin(FINAL_CLASSES)].copy()
     gdf = gdf[gdf.geometry.notnull()].copy()
@@ -67,7 +92,7 @@ def main():
 
     gdf["subclass"] = gdf["class"]
 
-# rescue misclassified roofs from paved
+    # rescue misclassified roofs from paved
     gdf.loc[
         (gdf["class"]=="paved_area") &
         (gdf["area_m2"] > 100) &
