@@ -31,28 +31,29 @@ def generate_windows(width: int, height: int, tile_size: int, overlap: int):
     if step <= 0:
         raise ValueError("overlap must be smaller than tile_size")
 
-    y = 0
-    while y < height:
-        x = 0
+    def positions(length: int):
+        if length <= tile_size:
+            return [0]
+
+        starts = list(range(0, length - tile_size + 1, step))
+        last_start = length - tile_size
+
+        if starts[-1] != last_start:
+            starts.append(last_start)
+
+        return starts
+
+    for y in positions(height):
         tile_h = min(tile_size, height - y)
 
-        if tile_h < tile_size * 0.35:
-            break
-
-        while x < width:
+        for x in positions(width):
             tile_w = min(tile_size, width - x)
-
-            if tile_w >= tile_size * 0.35:
-                yield Window(
-                    col_off=x,
-                    row_off=y,
-                    width=tile_w,
-                    height=tile_h,
-                )
-
-            x += step
-
-        y += step
+            yield Window(
+                col_off=x,
+                row_off=y,
+                width=tile_w,
+                height=tile_h,
+            )
 
 
 def tile_geotiff(
@@ -177,8 +178,6 @@ def tile_geotiff(
 
     return records
 
-print("tiling started")
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Path to GeoTIFF")
@@ -199,5 +198,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()\
-    
+    main()
