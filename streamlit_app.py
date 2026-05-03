@@ -1,9 +1,8 @@
 import streamlit as st
 import subprocess
-from pathlib import Path
+import shutil
 import zipfile
 from pathlib import Path
-import shutil
 
 st.set_page_config(page_title="GeoForce Roof Detection", layout="wide")
 st.title("GeoForce: Building Roof Detection from Satellite TIFFs")
@@ -67,15 +66,41 @@ if uploaded:
         with st.spinner("Running OBIA..."):
             run_cmd(["python", "src/obia.py", "outputs/masks/streamlit/mask_index.json", "--output", "outputs/masks_obia/streamlit"])
 
-        with st.spinner("Polygonizing results..."):
-            run_cmd(["python", "src/polygonize.py", "outputs/masks_obia/streamlit/mask_index.json", "--output", "outputs/geojson/streamlit"])
+        out_geo_dir = Path("outputs/geojson/streamlit")
+        out_geo_dir.mkdir(parents=True, exist_ok=True)
+        objects_path = out_geo_dir / "objects.geojson"
+        objects_clean_path = out_geo_dir / "objects_clean.geojson"
+        summary_csv = out_geo_dir / "summary_metrics.csv"
 
-        st.write("GeoJSON search all outputs:")
-        st.write(list(Path("outputs").rglob("*.geojson")))
+        with st.spinner("Polygonizing results..."):
+            run_cmd(
+                [
+                    "python",
+                    "src/polygonize.py",
+                    "outputs/masks_obia/streamlit/mask_index.json",
+                    "--output",
+                    str(objects_path),
+                ]
+            )
+
+        with st.spinner("Post-processing & metrics..."):
+            run_cmd(
+                [
+                    "python",
+                    "src/postprocess.py",
+                    str(objects_path),
+                    "--output",
+                    str(objects_clean_path),
+                    "--metrics",
+                    str(summary_csv),
+                ]
+            )
+
+        st.write("GeoJSON outputs:", list(out_geo_dir.glob("*.geojson")))
 
         st.success("Pipeline finished!")
 
-        geojson_files = list(Path("outputs/geojson").rglob("*objects_clean.geojson"))
+        geojson_files = list(out_geo_dir.glob("objects_clean.geojson"))
 
         if geojson_files:
             geojson_path = max(geojson_files, key=lambda p: p.stat().st_mtime)
