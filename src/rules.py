@@ -116,36 +116,6 @@ def make_masks(rgb, valid_mask):
         (~rooftop)
     )
 
-    fire = (
-        (
-            ((h <= 25) | (h >= 170)) |
-            ((h >= 8) & (h <= 35))
-        ) &
-        (s > 110) &
-        (v > 150) &
-        (r > g * 0.95) &
-        (g > b * 0.8) &
-        valid_mask
-    )
-
-    smoke = (
-        (s < 35) &
-        (brightness > 170) &
-        (brightness < 245) &
-        valid_mask &
-        (~vegetation) &
-        (~fire)
-    )
-
-    water = (
-        (h >= 95) & (h <= 125) &
-        (s > 45) &
-        (v > 25) & (v < 160) &
-        valid_mask &
-        (~vegetation) &
-        (~fire)
-    )
-
     bare_soil = (
         ((h >= 8) & (h <= 28)) &
         (s > 35) &
@@ -156,11 +126,11 @@ def make_masks(rgb, valid_mask):
         (g >= b * 0.9) &
         valid_mask &
         (~vegetation) &
-        (~fire) &
-        (~water)
+        (~shadow) &
+        (~rooftop)
     )
 
-    impervious = impervious & (~bare_soil) & (~water) & (~smoke) & (~fire)
+    impervious = impervious & (~bare_soil)
 
     # Shadow only where we did not already find vegetation or emergency classes.
     shadow = shadow & (~vegetation)
@@ -168,9 +138,6 @@ def make_masks(rgb, valid_mask):
     return {
         "vegetation": clean_mask(vegetation, 12, "vegetation"),
         "impervious_surface": clean_mask(impervious, 120, "impervious_surface"),
-        "smoke_plume": clean_mask(smoke, 600, "smoke_plume"),
-        "active_fire": clean_mask(fire, 20, "active_fire"),
-        "water": clean_mask(water, 200, "water"),
         "bare_soil": clean_mask(bare_soil, 90, "bare_soil"),
         "shadow_ignore": clean_mask(shadow, 200, "shadow_ignore"),
     }
@@ -186,15 +153,6 @@ def clean_mask(mask, min_area, class_name):
 
         open_k = np.ones((2, 2), np.uint8)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, open_k)
-    elif class_name in {"smoke_plume", "water"}:
-        close_k = np.ones((7, 7), np.uint8)
-        open_k = np.ones((3, 3), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, close_k)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, open_k)
-    elif class_name == "active_fire":
-        close_k = np.ones((3, 3), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, close_k)
-
     else:
         open_k = np.ones((5, 5), np.uint8)
         close_k = np.ones((9, 9), np.uint8)

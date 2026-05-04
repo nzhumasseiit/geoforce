@@ -13,7 +13,6 @@ st.title("GeoForce: Satellite Imagery to GIS Layers")
 st.caption("AOI-aware satellite image processing with GIS-ready outputs for QGIS and geospatial portals.")
 
 STABLE_CLASSES = {"vegetation", "impervious_surface", "bare_soil"}
-EXPERIMENTAL_CLASSES = {"smoke_plume", "active_fire", "water"}
 
 
 def run_cmd(cmd):
@@ -203,9 +202,6 @@ def load_results():
 
 
 def filter_for_mode(gdf, metrics_df, detection_mode: str):
-    if detection_mode == "Experimental":
-        return gdf, metrics_df
-
     filtered_gdf = gdf[gdf["class"].isin(STABLE_CLASSES)].copy() if "class" in gdf.columns else gdf.copy()
     if metrics_df.empty or "class" not in metrics_df.columns:
         return filtered_gdf, metrics_df
@@ -246,7 +242,7 @@ else:
 
 st.info(
     "Stable classes: vegetation, impervious surface, bare soil.\n\n"
-    "Experimental classes: smoke/fire candidates."
+    "Experimental layer plan: smoke/fire candidates via future YOLO overlay."
 )
 
 if run_clicked and tif_path is not None:
@@ -268,8 +264,8 @@ with tabs[0]:
     else:
         render_kpis(active_gdf, active_metrics)
         st.write(
-            "Stable mode focuses on vegetation, impervious surface, and bare soil. "
-            "Experimental mode also exposes smoke/fire candidate classes."
+            "Stable production path focuses on vegetation, impervious surface, and bare soil. "
+            "Experimental mode is reserved for a future emergency AI overlay."
         )
         st.write("Current run")
         st.json(
@@ -339,17 +335,17 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Experimental Emergency AI")
     st.write(
-        "This prototype keeps the emergency-oriented classes as experimental. "
-        "Use them as candidate signals rather than fully validated operational outputs."
+        "The current production pipeline is intentionally limited to stable GIS classes. "
+        "This tab is reserved for a future experimental emergency layer driven by YOLO inference."
     )
     st.write(
         "- Stable focus: vegetation, impervious surface, bare soil\n"
-        "- Experimental signals: smoke plume, active fire, water-like regions\n"
+        "- Planned experimental signals: smoke and fire candidates\n"
         "- Recommended demo framing: AOI-aware GIS extraction with extensible emergency analytics"
     )
     if detection_mode == "Experimental":
         st.warning(
-            "Experimental mode selected. Treat smoke/fire outputs as candidate detections and validate them manually."
+            "Experimental mode selected. The UI is ready for a future emergency AI overlay, but the current backend remains stable-only."
         )
     else:
         st.success("Stable mode selected. Prioritize vegetation and broad surface classes in the demo narrative.")

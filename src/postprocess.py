@@ -9,9 +9,6 @@ from shapely.ops import unary_union
 FINAL_CLASSES = {
     "vegetation",
     "impervious_surface",
-    "smoke_plume",
-    "active_fire",
-    "water",
     "bare_soil",
 }
 
@@ -99,17 +96,6 @@ def main():
 
     gdf["subclass"] = gdf["class"]
 
-    # Conservative smoke filter for demo safety:
-    # keep only larger, diffuse plumes to reduce false positives on gray roofs/clouds.
-    smoke_keep = (
-        (gdf["class"] != "smoke_plume") |
-        (
-            (gdf["area_m2"] >= 500.0) &
-            (gdf["compactness_score"] < 0.40)
-        )
-    )
-    gdf = gdf[smoke_keep].copy()
-
     # Linear impervious objects are often roads / paths.
     gdf.loc[
         (gdf["class"] == "impervious_surface") & (gdf["elongation_ratio"] >= 5.0),
@@ -131,18 +117,6 @@ def main():
         & (gdf["compactness_score"] > 0.45),
         "subclass"
     ] = "possible_green_roof"
-
-    gdf.loc[
-        (gdf["class"] == "water") &
-        (gdf["elongation_ratio"] >= 4.0),
-        "subclass"
-    ] = "linear_water"
-
-    gdf.loc[
-        (gdf["class"] == "smoke_plume") &
-        (gdf["compactness_score"] < 0.2),
-        "subclass"
-    ] = "diffuse_smoke"
 
     metrics = (
         gdf.groupby("class")

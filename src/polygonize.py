@@ -24,21 +24,6 @@ CLASS_CONFIG = {
         "simplify_tolerance": 0,
         "confidence_base": 58,
     },
-    "smoke_plume": {
-        "min_area_m2": 30,
-        "simplify_tolerance": 0,
-        "confidence_base": 55,
-    },
-    "active_fire": {
-        "min_area_m2": 4,
-        "simplify_tolerance": 0,
-        "confidence_base": 70,
-    },
-    "water": {
-        "min_area_m2": 20,
-        "simplify_tolerance": 0,
-        "confidence_base": 60,
-    },
     "bare_soil": {
         "min_area_m2": 30,
         "simplify_tolerance": 0,

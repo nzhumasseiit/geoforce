@@ -13,11 +13,8 @@ CLASS_ID = {
     "background": 0,
     "vegetation": 1,
     "impervious_surface": 2,
-    "smoke_plume": 3,
-    "active_fire": 4,
-    "water": 5,
-    "bare_soil": 6,
-    "shadow_ignore": 7,
+    "bare_soil": 3,
+    "shadow_ignore": 4,
 }
 
 ID_CLASS = {v: k for k, v in CLASS_ID.items()}
@@ -66,9 +63,6 @@ def majority_class(labels, weak_class_map, valid_mask):
         threshold_by_class = {
             CLASS_ID["vegetation"]: 0.12,
             CLASS_ID["impervious_surface"]: 0.32,
-            CLASS_ID["smoke_plume"]: 0.45,
-            CLASS_ID["active_fire"]: 0.08,
-            CLASS_ID["water"]: 0.26,
             CLASS_ID["bare_soil"]: 0.28,
             CLASS_ID["shadow_ignore"]: 0.45,
         }
@@ -120,12 +114,9 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
     # Vegetation last = vegetation can rescue trees from shadow/paved confusion.
     priority = [
         "shadow_ignore",
-        "water",
         "bare_soil",
         "impervious_surface",
         "vegetation",
-        "smoke_plume",
-        "active_fire",
     ]
 
     for cls in priority:
@@ -159,9 +150,6 @@ def process_tile(tile_image_path, tile_meta_path, weak_masks_by_class, out_dir):
     min_area_by_class = {
         "vegetation": 35,
         "impervious_surface": 180,
-        "smoke_plume": 120,
-        "active_fire": 20,
-        "water": 120,
         "bare_soil": 100,
         "shadow_ignore": 250,
     }
