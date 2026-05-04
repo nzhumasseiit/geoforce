@@ -105,7 +105,7 @@ def make_masks(rgb, valid_mask):
         (~vegetation)
     )
 
-    impervious = (
+    paved_like = (
         grayness &
         (brightness > 55) &
         (brightness < 215) &
@@ -130,7 +130,10 @@ def make_masks(rgb, valid_mask):
         (~rooftop)
     )
 
-    impervious = impervious & (~bare_soil)
+    # Keep the older strong roof heuristics, but merge them into the modern
+    # stable class name. This preserves bright/gray roof extraction while
+    # still exporting one robust built-up surface class.
+    impervious = (paved_like | rooftop) & (~bare_soil)
 
     # Shadow only where we did not already find vegetation or emergency classes.
     shadow = shadow & (~vegetation)
