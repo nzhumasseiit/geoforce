@@ -1,33 +1,44 @@
 # Manual Validation Template
 
-Use this template for 3-4 representative tiles in QGIS or the Streamlit outputs.
+Manual QA is visual comparison in QGIS/Streamlit because no ground-truth labels are available.
 
-## Tile Review Table
+Use this table for 3-4 representative demo territories or tiles.
 
-| Tile | Dominant Scene | Correct Classes | Main Errors | Notes |
+## Representative Demo Review
+
+| Tile / territory | Scene type | Good classes | Main errors | Demo quality |
 |---|---|---|---|---|
-| `tile_00001` | urban / industrial / vegetation / water | | | |
-| `tile_00002` | urban / industrial / vegetation / water | | | |
-| `tile_00003` | urban / industrial / vegetation / water | | | |
-| `tile_00004` | urban / industrial / vegetation / water | | | |
+| `territory_01` | dense urban / industrial / mixed vegetation | | | Strong / Medium / Weak |
+| `territory_02` | suburban / bare ground / construction edge | | | Strong / Medium / Weak |
+| `territory_03` | vegetation-heavy / peripheral urban | | | Strong / Medium / Weak |
+| `territory_04` | industrial / roads / open soil | | | Strong / Medium / Weak |
 
-## Suggested Error Types
+## Suggested QA Notes
 
-- `impervious_surface` confused with `bare_soil`
-- `smoke_plume` missed in low contrast scene
-- `water` confused with `shadow_ignore`
-- `active_fire` fragmented into small polygons
+- Stable classes under review:
+  - `vegetation`
+  - `impervious_surface`
+  - `bare_soil`
+- Compare final polygons against the source GeoTIFF and AOI boundary.
+- Flag where `impervious_surface` and `bare_soil` are visually close.
+- Note whether the AOI clipping behaves as expected.
 
-## Suggested Demo Screenshots
+## Confidence Explanation
 
-1. AOI boundary over source GeoTIFF
-2. Raw masks for one representative tile
-3. OBIA-smoothed output
-4. Final GeoJSON / GeoPackage layer in QGIS
+- `confidence_method = geometry_proxy`
+- The score is based on class baseline, object area, and valid pixel ratio.
+- It is not model posterior probability.
 
-## Notes For Defense
+## Suggested Screenshots For Demo
 
-- `confidence` is a geometric proxy, not a model posterior probability.
-- AOI clipping is applied during tiling via the optional AOI vector.
-- Main evaluated pipeline is `rule-based + OBIA`.
-- YOLO branch is retained as a future extension, not the main validated workflow.
+1. Source GeoTIFF
+2. Raw mask preview
+3. OBIA-smoothed result
+4. Final QGIS layer
+5. Metrics / download panel
+
+## Recommended Defense Notes
+
+- Stable mode is the validated demo path.
+- Experimental smoke/fire AI is optional and separated from the stable GIS export.
+- Manual QA is based on visual inspection of representative territories because the provided data does not include ground-truth labels for all candidate classes.

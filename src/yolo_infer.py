@@ -1,18 +1,25 @@
 from pathlib import Path
 import argparse
-from ultralytics import YOLO
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("images_dir")
-    parser.add_argument("--weights", default="models/best.pt")
+    parser.add_argument("--weights", default="models/emergency.pt")
     parser.add_argument("--output", default="outputs/yolo")
     parser.add_argument("--conf", type=float, default=0.10)
     args = parser.parse_args()
 
     images_dir = Path(args.images_dir)
     out_dir = Path(args.output)
+
+    try:
+        from ultralytics import YOLO
+    except Exception as exc:
+        raise RuntimeError(
+            "Ultralytics is required for the optional emergency YOLO module. "
+            "Install dependencies from requirements.txt and add weights to models/emergency.pt."
+        ) from exc
 
     model = YOLO(args.weights)
 
