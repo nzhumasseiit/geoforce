@@ -21,6 +21,7 @@ CLASS_LABELS = {
     "impervious_surface": "Built-up / Impervious Surface",
     "bare_soil": "Bare Soil",
 }
+DEFAULT_EXTERNAL_YOLO = Path("/Users/nurayzhumasseiit/Downloads/best_fire_smoke_yolov8s.pt")
 YOLO_WEIGHTS = Path("models/emergency.pt")
 YOLO_OUTPUT_ROOT = Path("outputs/yolo/emergency")
 PREVIEW_COLORS = {
@@ -38,28 +39,29 @@ def inject_css():
         """
         <style>
         .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+            padding-top: 2.2rem;
+            padding-bottom: 2.4rem;
         }
         .app-subtitle {
             color: #9fb0c0;
             margin-top: -0.35rem;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
             font-size: 1rem;
         }
         .panel-card {
             background: rgba(15, 22, 42, 0.94);
             border: 1px solid rgba(111, 103, 255, 0.18);
             border-radius: 16px;
-            padding: 1rem 1.1rem;
-            margin-bottom: 1rem;
+            padding: 1.1rem 1.2rem;
+            margin-bottom: 1.15rem;
+            overflow-wrap: anywhere;
         }
         .kpi-card {
             background: linear-gradient(180deg, rgba(18, 27, 51, 0.98) 0%, rgba(8, 13, 28, 0.98) 100%);
             border: 1px solid rgba(111, 103, 255, 0.16);
             border-radius: 18px;
-            padding: 1rem 1.1rem;
-            min-height: 118px;
+            padding: 1.1rem 1.15rem;
+            min-height: 126px;
             box-shadow: 0 14px 36px rgba(6, 10, 24, 0.32);
         }
         .kpi-label {
@@ -78,14 +80,16 @@ def inject_css():
         .legend-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 0.8rem;
-            margin-top: 0.8rem;
+            gap: 1rem;
+            margin-top: 1rem;
+            margin-bottom: 0.6rem;
         }
         .legend-block {
             background: rgba(18, 27, 51, 0.88);
             border: 1px solid rgba(111, 103, 255, 0.14);
             border-radius: 14px;
-            padding: 0.95rem 1rem;
+            padding: 1rem 1.05rem;
+            min-height: 132px;
         }
         .legend-title {
             color: #00C2FF;
@@ -101,18 +105,19 @@ def inject_css():
             background: linear-gradient(90deg, rgba(0, 194, 255, 0.12) 0%, rgba(18, 27, 51, 0.96) 65%, rgba(111, 103, 255, 0.16) 100%);
             border: 1px solid rgba(0, 194, 255, 0.20);
             border-radius: 14px;
-            padding: 0.9rem 1rem;
+            padding: 1rem 1.05rem;
             color: #dbe5ee;
             font-weight: 600;
             letter-spacing: 0.01em;
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
         }
         .preview-frame {
             background: rgba(18, 27, 51, 0.88);
             border: 1px solid rgba(111, 103, 255, 0.14);
             border-radius: 16px;
-            padding: 0.85rem;
+            padding: 0.95rem;
             min-height: 100%;
+            margin-bottom: 0.5rem;
         }
         div.stButton > button {
             width: 100%;
@@ -121,6 +126,10 @@ def inject_css():
             background: linear-gradient(90deg, #00C2FF 0%, #6F67FF 100%);
             color: #08111d;
             border: none;
+        }
+        [data-testid="stHorizontalBlock"] > div {
+            padding-right: 0.25rem;
+            padding-left: 0.25rem;
         }
         </style>
         """,
@@ -235,9 +244,9 @@ def parse_emergency_candidates(yolo_run_dir: Path) -> pd.DataFrame:
                 rows.append(
                     {
                         "tile_name": label_path.stem,
-                        "candidate_id": f"{label_path.stem}_{idx}",
-                        "candidate_label": "Smoke / fire candidate",
-                        "confidence_hint": confidence,
+                        "detection_id": f"{label_path.stem}_{idx}",
+                        "label": "Smoke / fire",
+                        "confidence": confidence,
                     }
                 )
 
@@ -306,14 +315,22 @@ def build_preview_images(tile_root: Path, obia_index_path: Path, preview_dir: Pa
     }
 
 
-def run_experimental_yolo(tile_root: Path):
+def resolve_yolo_weights_path(weights_path: str) -> Path:
+    path = Path(weights_path).expanduser()
+    if path.exists():
+        return path
+    return YOLO_WEIGHTS
+
+
+def run_experimental_yolo(tile_root: Path, weights_path: str):
     reset_pipeline_dirs([YOLO_OUTPUT_ROOT])
     YOLO_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    selected_weights = resolve_yolo_weights_path(weights_path)
 
-    if not YOLO_WEIGHTS.exists():
+    if not selected_weights.exists():
         return {
             "enabled": False,
-            "message": "Experimental smoke/fire YOLO module is optional. Add trained weights to models/emergency.pt to enable it.",
+            "message": "Smoke/fire AI is available when YOLO weights are provided.",
             "output_dir": str(YOLO_OUTPUT_ROOT),
             "error": None,
         }
@@ -325,7 +342,7 @@ def run_experimental_yolo(tile_root: Path):
                 "src/yolo_infer.py",
                 str(tile_root),
                 "--weights",
-                str(YOLO_WEIGHTS),
+                str(selected_weights),
                 "--output",
                 str(YOLO_OUTPUT_ROOT),
                 "--conf",
@@ -340,7 +357,7 @@ def run_experimental_yolo(tile_root: Path):
     if result.returncode != 0:
         return {
             "enabled": True,
-            "message": "Experimental smoke/fire YOLO module could not complete. Stable GIS extraction is still available.",
+            "message": "Smoke/fire AI could not complete for this run. Stable GIS extraction is still available.",
             "output_dir": str(run_dir),
             "error": result.stderr or result.stdout,
             "summary_df": summary_df,
@@ -348,14 +365,14 @@ def run_experimental_yolo(tile_root: Path):
 
     return {
         "enabled": True,
-        "message": "Experimental smoke/fire YOLO module finished. Outputs are labeled as candidate detections only.",
+        "message": "Smoke/fire AI finished successfully.",
         "output_dir": str(run_dir),
         "error": None,
         "summary_df": summary_df,
     }
 
 
-def run_pipeline(tif_path: Path, aoi_path: str, min_area: float, detection_mode: str):
+def run_pipeline(tif_path: Path, aoi_path: str, min_area: float, detection_mode: str, yolo_weights_path: str):
     tiles_dir = Path("data/tiles/streamlit")
     masks_dir = Path("outputs/masks/streamlit")
     masks_obia_dir = Path("outputs/masks_obia/streamlit")
@@ -420,13 +437,13 @@ def run_pipeline(tif_path: Path, aoi_path: str, min_area: float, detection_mode:
 
     emergency = {
         "enabled": False,
-        "message": "Experimental smoke/fire YOLO module is optional. Add trained weights to models/emergency.pt to enable it.",
+        "message": "Smoke/fire AI is available when YOLO weights are provided.",
         "output_dir": str(YOLO_OUTPUT_ROOT),
         "error": None,
         "summary_df": pd.DataFrame(),
     }
     if detection_mode == "Experimental emergency AI":
-        emergency = run_experimental_yolo(tiles_dir)
+        emergency = run_experimental_yolo(tiles_dir, yolo_weights_path)
 
     return {
         "tif_path": str(tif_path),
@@ -509,8 +526,8 @@ def render_legend():
             <div class="legend-block">
                 <div class="legend-title">Experimental</div>
                 <ul class="legend-list">
-                    <li>Smoke-like candidate</li>
-                    <li>Fire-like candidate</li>
+                    <li>Smoke detections</li>
+                    <li>Fire detections</li>
                 </ul>
             </div>
         </div>
@@ -541,6 +558,8 @@ with st.sidebar:
     aoi_path = st.text_input("Optional AOI path", placeholder="/absolute/path/to/aoi.geojson").strip()
     detection_mode = st.selectbox("Detection mode", ["Stable GIS extraction", "Experimental emergency AI"])
     min_area = st.number_input("Min object area", min_value=1.0, value=25.0, step=25.0)
+    default_weights = str(DEFAULT_EXTERNAL_YOLO if DEFAULT_EXTERNAL_YOLO.exists() else YOLO_WEIGHTS)
+    yolo_weights_path = st.text_input("Smoke / fire YOLO weights", value=default_weights).strip()
     run_clicked = st.button("Run Analysis", type="primary", disabled=tif_path is None)
 
 if tif_path is not None:
@@ -555,7 +574,7 @@ st.markdown(
     """
     <div class="panel-card">
         <strong>Stable mode exports only validated land-cover classes.</strong>
-        Experimental emergency AI is separated and should be treated as candidate detections.
+        Experimental emergency AI runs as a separate smoke/fire layer.
     </div>
     """,
     unsafe_allow_html=True,
@@ -563,7 +582,7 @@ st.markdown(
 st.caption("Confidence is a geometry-based proxy score, not a neural network probability.")
 
 if run_clicked and tif_path is not None:
-    st.session_state["last_run"] = run_pipeline(tif_path, aoi_path, min_area, detection_mode)
+    st.session_state["last_run"] = run_pipeline(tif_path, aoi_path, min_area, detection_mode, yolo_weights_path)
     st.success("Analysis finished.")
 
 results = load_results()
@@ -698,8 +717,8 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Experimental AI")
     emergency = results["emergency"] if results is not None else {}
-    st.write("Experimental smoke/fire YOLO module is optional. Add trained weights to models/emergency.pt to enable it.")
-    st.write("Any experimental detections are labeled as candidate detections and are not merged into the stable GIS export.")
+    st.write("Smoke/fire AI runs as a separate layer from the stable GIS extraction.")
+    st.write("Provide YOLO weights to enable detections on the current tile set.")
 
     if not emergency:
         st.info("Run the analysis to initialize the optional experimental module.")
@@ -719,15 +738,15 @@ with tabs[4]:
 
         summary_df = emergency.get("summary_df", pd.DataFrame())
         if isinstance(summary_df, pd.DataFrame) and not summary_df.empty:
-            candidate_count = len(summary_df)
+            detection_count = len(summary_df)
             tile_count = summary_df["tile_name"].nunique()
-            mean_conf = summary_df["confidence_hint"].dropna().mean()
+            mean_conf = summary_df["confidence"].dropna().mean()
 
             cols = st.columns(3)
-            cols[0].metric("Candidate detections", str(candidate_count))
-            cols[1].metric("Tiles with candidates", str(tile_count))
-            cols[2].metric("Mean confidence hint", f"{mean_conf:.2f}" if pd.notna(mean_conf) else "n/a")
+            cols[0].metric("Smoke / fire detections", str(detection_count))
+            cols[1].metric("Tiles with detections", str(tile_count))
+            cols[2].metric("Mean confidence", f"{mean_conf:.2f}" if pd.notna(mean_conf) else "n/a")
 
             st.dataframe(summary_df.head(100), use_container_width=True)
         elif emergency.get("enabled"):
-            st.write("No experimental candidate detections were produced for this run.")
+            st.write("No smoke/fire detections were produced for this run.")
